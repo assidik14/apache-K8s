@@ -1,0 +1,76 @@
+# Apache Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpd
+  labels:
+    name: httpd
+    env: development
+spec:
+  replicas: 2
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - httpd
+      - key: team
+        operator: In
+        values:
+          - DC
+  template:
+    metadata:
+      name: httpd
+      labels:
+        app: httpd
+        team: DC
+    spec:
+      containers:
+        - name: httpd-container
+          image: httpd:latest
+          ports:
+          - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+
+---
+# Service Apache
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpd-service
+spec:
+  selector:
+    app: httpd
+  ports:
+  - port: 80
+    targetPort: 80
+    name: httpd-container
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httpd-ingress
+  labels:
+    name: httpd-ingress
+spec:
+  rules:
+    - host: dev-k8s-apache.brilife.co.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                 name: httpd-service
+                 port:
+                   number: 80
